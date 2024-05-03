@@ -1,3 +1,5 @@
+from sage.arith.functions import lcm
+from sage.arith.misc import gcd
 from sage.misc.latex import latex, LatexExpr
 from sage.rings.integer import Integer
 from sage.rings.number_field.number_field_base import NumberField
@@ -15,45 +17,79 @@ class IncompleteSqrtExtensionElement(FieldElement):
         base_ring = parent.base_ring()
         if isinstance(v, IncompleteSqrtExtensionElement):
             assert v.v.is_one()
-            v = v.u
+            v = v.u / v.d
         if isinstance(u, IncompleteSqrtExtensionElement):
             v = u.v * v
-            u = u.u
+            u = u.u / u.d
         u = base_ring(u)
         v = base_ring(v)
+        self._pretty = False
         if u.is_zero() or v.is_zero():
             u = v = base_ring.zero()
+            self._pretty = True
         elif v.is_square():
             u = u * v.sqrt()
             v = base_ring.one()
         self.u = u
         self.v = v
+        self.d = Integer(1)
+
+    def _prettify(self):
+        if self._pretty:
+            return
+        u = self.u
+        v = self.v
+        if v.is_rational():
+            a = lcm(w.denom() for w in v)
+            a *= a.squarefree_part()
+            u = u / a.sqrt()
+            v = v * a
+            b = gcd(iter(v))
+            b /= b.squarefree_part()
+            u = u * b.sqrt()
+            v = v / b
+        self.d = lcm(w.denom() for w in u)
+        self.u = u * self.d
+        self.v = v
+        self._pretty = True
 
     def _repr_(self):
+        self._prettify()
+        d = "" if self.d.is_one() else f"/{self.d}"
         if self.v.is_one() or self.v.is_zero():
-            return f"{self.u}"
-        elif self.u.is_one():
+            return f"{self.u}{d}"
+        elif self.u.is_one() and self.d.is_one():
             return f"sqrt({self.v})"
-        elif (-self.u).is_one():
+        elif (-self.u).is_one() and self.d.is_one():
             return f"-sqrt({self.v})"
         u = self.u if sum(w != 0 for w in self.u) == 1 else f"({self.u})"
-        return f"{u} * sqrt({self.v})"
+        return f"{u}{d} * sqrt({self.v})"
 
     def _latex_(self):
+        self._prettify()
         u = latex(self.u)
         v = latex(self.v)
-        if self.v.is_one() or self.v.is_zero():
-            return u
-        elif self.u.is_one():
-            return LatexExpr(r"\sqrt{%s}" % v)
-        elif (-self.u).is_one():
-            return LatexExpr(r"-\sqrt{%s}" % v)
-        if sum(w != 0 for w in self.u) > 1:
-            u = r"\left(%s\right)" % u
+        d = latex(self.d)
+        if self.d.is_one():
+            if self.v.is_one() or self.v.is_zero():
+                return u
+            elif self.u.is_one():
+                return LatexExpr(r"\sqrt{%s}" % v)
+            elif (-self.u).is_one():
+                return LatexExpr(r"-\sqrt{%s}" % v)
+            if sum(w != 0 for w in self.u) > 1:
+                u = r"\left(%s\right)" % u
+        else:
+            if sum(w != 0 for w in self.u) > 1 or self.u > 0:
+                u = r"\frac{%s}{%s}" % (u, d)
+            else:
+                u = r"-\frac{%s}{%s}" % (latex(-self.u), d)
+            if self.v.is_one() or self.v.is_zero():
+                return LatexExpr(u)
         return LatexExpr(r"%s \cdot \sqrt{%s}" % (u, v))
 
     def _algebraic_(self, ring):
-        return ring(self.u) * ring(self.v).sqrt()
+        return ring(self.u / self.d) * ring(self.v).sqrt()
 
     def _rational_(self, ring=Q):
         return ring(AA(self))
@@ -75,11 +111,11 @@ class IncompleteSqrtExtensionElement(FieldElement):
             v = other.v / self.v
             assert v.is_square()
             u = other.u * v.sqrt()
-        return IncompleteSqrtExtensionElement(parent, self.u + u, self.v)
+        return IncompleteSqrtExtensionElement(parent, self.u / self.d + u / other.d, self.v)
 
     def _mul_(self, other):
         parent = self.parent()
-        u = self.u * other.u
+        u = self.u * other.u / (self.d * other.d)
         if self.v == other.v:
             u *= self.v
             v = parent.base_ring().one()
@@ -88,19 +124,36 @@ class IncompleteSqrtExtensionElement(FieldElement):
         return IncompleteSqrtExtensionElement(parent, u, v)
 
     def _neg_(self):
-        return IncompleteSqrtExtensionElement(self.parent(), -self.u, self.v)
+        return IncompleteSqrtExtensionElement(self.parent(), -self.u / self.d, self.v)
+
+    def _pow_(self, other):
+        if other.v.is_one() and other.u.is_rational():
+            u = Q(other.u / other.d)
+            num = u.numerator()
+            den = u.denominator()
+            if den.is_one():
+                return IncompleteSqrtExtensionElement(self.parent(), ((self.u / self.d) ** num) * (self.v ** (num // 2)), self.v ** (num % 2))
+            if den == 2 and self.v.is_one():
+                return IncompleteSqrtExtensionElement(self.parent(), (self.u / self.d) ** ((num-1) / 2), self.u / self.d)
+        raise NotImplementedError
 
     def __invert__(self):
-        return IncompleteSqrtExtensionElement(self.parent(), Integer(1)/(self.u * self.v), self.v)
+        return IncompleteSqrtExtensionElement(self.parent(), self.d / (self.u * self.v), self.v)
+
+    def __abs__(self):
+        return self if self >= 0 else -self
+
+    def _signed_square(self):
+        return self.u.sign() * (self.u / self.d) ** 2 * self.v
 
     def _richcmp_(self, other, op):
-        return richcmp(self.u.sign() * self.u**2 * self.v, other.u.sign() * other.u**2 * other.v, op)
+        return richcmp(self._signed_square(), other._signed_square(), op)
 
     def sqrt(self):
         assert self.v.is_one()
         assert self.u >= 0
         parent = self.parent()
-        return IncompleteSqrtExtensionElement(parent, parent.base_ring().one(), self.u)
+        return IncompleteSqrtExtensionElement(parent, parent.base_ring().one(), self.u / self.d)
 
     
 class IncompleteSqrtExtension(NumberField):
