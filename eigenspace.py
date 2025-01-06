@@ -1,6 +1,8 @@
 from incomplete_sqrt_extension import IncompleteSqrtExtension
 from sage.functions.other import sqrt
 from sage.matrix.constructor import Matrix
+from sage.matrix.special import identity_matrix
+from sage.matrix.special import ones_matrix
 from sage.matrix.special import zero_matrix
 from sage.rings.integer import Integer
 
@@ -17,7 +19,7 @@ class VectorError(ValueError):
 
 
 class Eigenspace:
-    def __init__(self, dimension, cosines, ring=None, extend=False):
+    def __init__(self, dimension, cosines, ring=None, extend=True):
         self.dimension = Integer(dimension)
         cosines = Matrix([cosines])[0]
         if ring is None:
@@ -57,3 +59,13 @@ class Eigenspace:
                     raise VectorError("The norm of the obtained vector is smaller than one!", A, i, j, d)
                 A[i, j] = sqrt(d)
         return A
+
+
+def relmatrix(*Gs, vcs=None):
+    G1, *Gr = Gs
+    n = len(G1)
+    if vcs is None:
+        vcs = G1.vertices()
+    assert all(n == len(G) for G in Gr)
+    return (len(Gs) + 1) * (ones_matrix(n, n) - identity_matrix(n)) - \
+        sum(i * G.am(vertices=vcs) for i, G in enumerate(reversed(Gs), 1))

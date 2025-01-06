@@ -150,7 +150,7 @@ class IncompleteSqrtExtensionElement(FieldElement):
         return richcmp(self._signed_square(), other._signed_square(), op)
 
     def sqrt(self):
-        assert self.v.is_one()
+        assert self.v.is_one() or self.u.is_zero()
         assert self.u >= 0
         parent = self.parent()
         return IncompleteSqrtExtensionElement(parent, parent.base_ring().one(), self.u / self.d)
