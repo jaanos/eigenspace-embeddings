@@ -1,6 +1,7 @@
 from sage.arith.functions import lcm
 from sage.arith.misc import gcd
 from sage.misc.latex import latex, LatexExpr
+from sage.rings.infinity import infinity
 from sage.rings.integer import Integer
 from sage.rings.number_field.number_field_base import NumberField
 from sage.rings.qqbar import AA
@@ -9,6 +10,7 @@ from sage.rings.real_mpfr import RealField
 from sage.rings.ring import Ring
 from sage.structure.element import FieldElement
 from sage.structure.richcmp import richcmp, op_EQ, op_GE, op_GT, op_LE, op_LT, op_NE
+from sage.symbolic.ring import SR
 
 
 class IncompleteSqrtExtensionElement(FieldElement):
@@ -80,7 +82,8 @@ class IncompleteSqrtExtensionElement(FieldElement):
             if sum(w != 0 for w in self.u) > 1:
                 u = r"\left(%s\right)" % u
         else:
-            if sum(w != 0 for w in self.u) > 1 or self.u > 0:
+            if sum(w != 0 for w in self.u) > 1 or \
+                    next(x for x in self.u if not x.is_zero()) > 0:
                 u = r"\frac{%s}{%s}" % (u, d)
             else:
                 u = r"-\frac{%s}{%s}" % (latex(-self.u), d)
@@ -93,6 +96,9 @@ class IncompleteSqrtExtensionElement(FieldElement):
 
     def _rational_(self, ring=Q):
         return ring(AA(self))
+
+    def _symbolic_(self, ring=SR):
+        return self._algebraic_(ring)._sympy_().simplify()._sage_()
 
     _integer_ = _real_double_ = _complex_double_ = _rational_
 
@@ -148,6 +154,9 @@ class IncompleteSqrtExtensionElement(FieldElement):
 
     def _richcmp_(self, other, op):
         return richcmp(self._signed_square(), other._signed_square(), op)
+
+    def additive_order(self):
+        return Integer(1) if self.is_zero() else infinity
 
     def sqrt(self):
         assert self.v.is_one() or self.u.is_zero()
