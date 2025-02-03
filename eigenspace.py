@@ -60,6 +60,9 @@ class Eigenspace:
                 A[i, j] = sqrt(d)
         return A
 
+    def vector_space(self):
+        return self.cosines.base_ring() ** self.dimension
+
 
 def relmatrix(*Gs, vcs=None):
     G1, *Gr = Gs
