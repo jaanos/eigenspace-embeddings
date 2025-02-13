@@ -58,7 +58,9 @@ class IncompleteSqrtExtensionElement(FieldElement):
     def _repr_(self):
         self._prettify()
         d = "" if self.d.is_one() else f"/{self.d}"
-        u = self.u if sum(w != 0 for w in self.u) == 1 else f"({self.u})"
+        u = self.u \
+                if self.d.is_one() or sum(w != 0 for w in self.u) == 1 else \
+            f"({self.u})"
         if self.v.is_one() or self.v.is_zero():
             return f"{u}{d}"
         elif self.u.is_one() and self.d.is_one():
