@@ -14,7 +14,7 @@ ENV HOME /home/${NB_USER}
 RUN adduser --disabled-password --gecos "Default user" --uid ${NB_UID} ${NB_USER}
 
 # Make sure the contents of the notebooks directory are in ${HOME}
-COPY notebooks/* ${HOME}/
+COPY * ${HOME}/
 RUN chown -R ${NB_USER}:${NB_USER} ${HOME}
 
 # Switch to the user
