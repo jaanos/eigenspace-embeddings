@@ -1,5 +1,7 @@
 # Eigenspace embeddings of association schemes
 
+[![arXiv](https://img.shields.io/badge/arXiv-2504.08733-b31b1b.svg)](https://arxiv.org/abs/2504.08733)
+
 [![Launch in Binder](https://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/jaanos/eigenspace-embeddings/main)
 
 ## Programs
